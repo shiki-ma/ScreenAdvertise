@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+    <opentime>00:00</opentime>
+    <closetime>23:30</closetime>
+    <sendtime>12:00</sendtime>
+    <sendtype>0</sendtype>
+    <mobilephone></mobilephone>
+    <autoupdate>15:00</autoupdate>
+    <systime>2014 09 17 09 05 13</systime>
+    <volume>5</volume>
+    <bright>5</bright>
+    <weather>shanghai</weather>
+    <romid></romid>
+    <server>61.129.70.157:8089/Telecom</server>
+    <media>61.129.70.157:8089/Media</media>
+    <jpegshowtime>15</jpegshowtime>
+</root>
