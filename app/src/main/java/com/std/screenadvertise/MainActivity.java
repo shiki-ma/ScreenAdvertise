@@ -1,7 +1,6 @@
 package com.std.screenadvertise;
 
 import android.app.AlertDialog;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.content.res.XmlResourceParser;
@@ -105,7 +104,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
         version = ApkHelper.getVersionName(this);
         final SharedPreferences sp = getSharedPreferences("packet", MODE_PRIVATE);
         tid = sp.getString("tid", "");
-        sdf = new SimpleDateFormat("yyyy-MM-dd");
+        sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm");
         tidDate = sdf.format(new Date());
         if (tid.equals("")) {
             final EditText etTid = new EditText(this);
@@ -207,7 +206,6 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
                     if (getMediaPwd(mediaFile).equals(mediaBean.getPwd())) {
                         if (mediaBean.getType().equals("video")) {
                             try {
-                                //audioMgr.setStreamVolume(AudioManager.STREAM_MUSIC, 1, AudioManager.FLAG_PLAY_SOUND);
                                 ivMain.setVisibility(View.GONE);
                                 mPlayer.setAudioStreamType(AudioManager.STREAM_SYSTEM);
                                 mPlayer.setDataSource(mediaPath);
@@ -241,7 +239,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
 
     private void startHeartbeat() {
         Observable.interval(0, 30, TimeUnit.SECONDS)
-                .subscribeOn(Schedulers.io())
+                .observeOn(Schedulers.io())
                 .map(new Func1<Long, String>() {
                     @Override
                     public String call(Long execNum) {
@@ -264,12 +262,24 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
                         return null;
                     }
                 })
+                .observeOn(AndroidSchedulers.mainThread())
                 .filter(new Func1<String, Boolean>() {
                     @Override
                     public Boolean call(String responseMsg) {
-                        return responseMsg != null && responseMsg.length() == 3;
+                        boolean isConnected = (responseMsg != null);
+                        if (isConnected)
+                            ivQRCode.setVisibility(View.VISIBLE);
+                        else
+                            ivQRCode.setVisibility(View.GONE);
+                        String curDate = sdf.format(new Date());
+                        if (!curDate.equals(tidDate)) {
+                            tidDate = curDate;
+                            createQRImage(tid + "," + tidDate);
+                        }
+                        return isConnected && responseMsg.length() == 3;
                     }
                 })
+                .observeOn(Schedulers.io())
                 .map(new Func1<String, String>() {
                     @Override
                     public String call(String responseMsg) {
@@ -305,9 +315,20 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
                         return downloadMedias(tmpTask.getVideoList());
                     }
                 })
-                .map(new Func1<Integer, Boolean>() {
+                .subscribe(new Subscriber<Integer>() {
                     @Override
-                    public Boolean call(Integer updateResult) {
+                    public void onCompleted() {
+                        // ignored
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        // ignored
+                    }
+
+                    @Override
+                    public void onNext(Integer updateResult) {
+                        Logger.d("最终结果");
                         try {
                             Response response = OkHttpUtils.get().url(AdvertiseApi.HTTP + nowSetting.getServer() + "/" + AdvertiseApi.UPDATE_URL).addParams("id", tid).addParams("success", String.valueOf(updateResult)).build().execute();
                             if (response.isSuccessful()) {
@@ -318,24 +339,6 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
                         }
                         if (updateResult == 1)
                             isUpdate = true;
-                        String curDate = sdf.format(new Date());
-                        return curDate.equals(tidDate);
-                    }
-                })
-                .subscribe(new Subscriber<Boolean>() {
-                    @Override
-                    public void onCompleted() {
-                        System.out.println("onCompleted");
-                    }
-
-                    @Override
-                    public void onError(Throwable e) {
-                        System.out.println("onError");
-                    }
-
-                    @Override
-                    public void onNext(Boolean isUpdate) {
-
                     }
                 });
     }
@@ -390,11 +393,11 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
                 return isSuccess[0];
             }
         }).reduce(new Func2<Integer, Integer, Integer>() {
-                    @Override
-                    public Integer call(Integer val1, Integer val2) {
-                        return val1 * val2;
-                    }
-                });
+            @Override
+            public Integer call(Integer val1, Integer val2) {
+                return val1 * val2;
+            }
+        });
     }
 
     private void downloadMedia(MediaBean media) throws IOException {
